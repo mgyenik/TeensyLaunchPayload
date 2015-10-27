@@ -8,23 +8,17 @@
 // include the SD library:
 #include <SdFat.h> 
 #include <spi4teensy3.h>
-//MOSI to PIN 11
-//MISO to PIN 12
-//SCLK to PIN 13
-//SS to PIN 10 
+//MOSI connected to PIN 11
+//MISO connected to PIN 12
+//SCLK connected to PIN 13
+//SS connected to PIN 10 
+
 //Stuff for XBee
 #include <XBee.h> // Stuff for GPS
 #include <TinyGPS.h> //interacts with GPS reciever
 
-// access memory that persists independent of power state
-//#include <EEPROM.h>
-
-
 TinyGPS gps;
-#define gpsSerial Serial1
 XBee xbee = XBee();
-
-
 
 /* Assign a unique ID to the sensors */
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
@@ -41,8 +35,7 @@ File dataFile;
 const int8_t DISABLE_CHIP_SELECT = -1;
 
 /* Print out the sensor data from the 10 DOF to USB for debug*/
-void displaySensorDetails(void)
-{
+void displaySensorDetails(void){
   sensor_t sensor;
   accel.getSensor(&sensor);
   Serial.println(F("----------- ACCELEROMETER ----------"));
@@ -78,58 +71,65 @@ void displaySensorDetails(void)
   
   delay(500);
 }
+void debug(){
+  //debug GPS via USB
+  float flat, flon;
+  unsigned long age; 
+  gps.f_get_position(&flat, &flon, &age);
+  Serial.print("GPS,");
+  Serial.print("TIME:");
+  Serial.print(millis() / 1000.0);
+  Serial.print(",LAT:");
+  Serial.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 6);
+  Serial.print(",LON:");
+  Serial.print(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6);
+  Serial.println("");  
 
-void setup(){
-  Serial.begin(115200);
-  Serial1.begin(4800);
-  Serial3.begin(9600);
-  xbee.setSerial(Serial3);
-  delay(5000);
-  Serial.println(F("Let's launch some rockets!")); Serial.println("");
-  
-  /* Initialise the sensors */
-  if(!accel.begin())
-  {
-    /* There was a problem detecting the ADXL345 ... check your connections */
-    Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
-    while(1);
-  }
-  if(!mag.begin())
-  {
-    /* There was a problem detecting the LSM303 ... check your connections */
-    Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
-    while(1);
-  }
-  if(!bmp.begin())
-  {
-    /* There was a problem detecting the BMP085 ... check your connections */
-    Serial.print("Ooops, no BMP085 detected ... Check your wiring or I2C ADDR!");
-    while(1);
-  }
-  if(!gyro.begin())
-  {
-    /* There was a problem detecting the L3GD20 ... check your connections */
-    Serial.print("Ooops, no L3GD20 detected ... Check your wiring or I2C ADDR!");
-    while(1);
-  }
-  
-  /* Display some basic information on this sensor */
-  displaySensorDetails();
+  //debug sensors via USB
+  /* Get a new sensor event */
+  sensors_event_t event;
+   
+  /* Display the results (acceleration is measured in m/s^2) */
+  accel.getEvent(&event);
+  Serial.print(F("ACCEL "));
+  Serial.print("X: "); Serial.print(event.acceleration.x); Serial.print("  ");
+  Serial.print("Y: "); Serial.print(event.acceleration.y); Serial.print("  ");
+  Serial.print("Z: "); Serial.print(event.acceleration.z); Serial.print("  ");Serial.println("m/s^2 ");
 
-  //wait for serial port to open for trouble shooting sd card 
-  while (!Serial) {
+  /* Display the results (magnetic vector values are in micro-Tesla (uT)) */
+  mag.getEvent(&event);
+  Serial.print(F("MAG   "));
+  Serial.print("X: "); Serial.print(event.magnetic.x); Serial.print("  ");
+  Serial.print("Y: "); Serial.print(event.magnetic.y); Serial.print("  ");
+  Serial.print("Z: "); Serial.print(event.magnetic.z); Serial.print("  ");Serial.println("uT");
+
+  /* Display the results (gyrocope values in rad/s) */
+  gyro.getEvent(&event);
+  Serial.print(F("GYRO:  "));
+  Serial.print("X: "); Serial.print(event.gyro.x); Serial.print("  ");
+  Serial.print("Y: "); Serial.print(event.gyro.y); Serial.print("  ");
+  Serial.print("Z: "); Serial.print(event.gyro.z); Serial.print("  ");Serial.println("rad/s ");  
+
+  /* Display the pressure sensor results (barometric pressure is measure in hPa) */
+  bmp.getEvent(&event);
+  if (event.pressure){
+    /* Display atmospheric pressure in hPa */
+    Serial.print(F("PRESS "));
+    Serial.print(event.pressure);
+    Serial.print(F(" hPa, "));
+    /* Display ambient temperature in C */
+    float temperature;
+    bmp.getTemperature(&temperature);
+    Serial.print(temperature);
+    Serial.print(F(" C, "));
+    /* Then convert the atmospheric pressure, SLP and temp to altitude    */
+    /* Update this next line with the current SLP for better results      */
+    float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
+    Serial.print(bmp.pressureToAltitude(seaLevelPressure, event.pressure, temperature)); 
+    Serial.println(F(" m"));
   }
-  Serial.print("\nInitializing SD card...");
-  // see if the card is present and can be initialized:
-  if (!SD.begin(chipSelect)) {
-    Serial.println("Card failed, or not present");
-    // don't do anything more:
-    return;
-  }
-  Serial.println("card initialized.");
+  Serial.println(F(""));
 }
-
-  
 
 void transmitAndWriteSensorData() {
   File dataFile = SD.open("launch.txt", FILE_WRITE);
@@ -177,8 +177,7 @@ void transmitAndWriteSensorData() {
   Serial3.print("Z: "); Serial3.print(event.gyro.z); Serial3.print("  ");Serial3.println("rad/s ");
   /* Display the pressure sensor results (barometric pressure is measure in hPa) */
   bmp.getEvent(&event);
-  if (event.pressure)
-  {
+  if (event.pressure){
     /* Display atmospheric pressure in hPa */
     // To Xbee
     Serial3.print(F("PRESS "));
@@ -198,12 +197,8 @@ void transmitAndWriteSensorData() {
     /* Then convert the atmospheric pressure, SLP and temp to altitude    */
     /* Update this next line with the current SLP for better results      */
     float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
-    Serial3.print(bmp.pressureToAltitude(seaLevelPressure,
-                                        event.pressure,
-                                        temperature)); 
-    dataFile.print(bmp.pressureToAltitude(seaLevelPressure,
-                                        event.pressure,
-                                        temperature)); 
+    Serial3.print(bmp.pressureToAltitude(seaLevelPressure,event.pressure,temperature)); 
+    dataFile.print(bmp.pressureToAltitude(seaLevelPressure,event.pressure,temperature)); 
 
     Serial3.println(F(" m"));
     dataFile.println(F(" m"));
@@ -221,33 +216,76 @@ void transmitAndWriteGPSData() {
   gps.f_get_position(&flat, &flon, &age);
   //transmit to Xbee and SD 
     
-    Serial3.print("GPS:");
-    Serial3.print("TIME:");
-    Serial3.print(millis() / 1000.0);
+  Serial3.print("GPS:");
+  Serial3.print("TIME:");
+  Serial3.print(millis() / 1000.0);
   // Serial3.print(TinyGPS::_time);
-    Serial3.print(",LAT:");
-    Serial3.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 6);
-    Serial3.print(",LON:");
-    Serial3.print(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6);
-    Serial3.println("");
+  Serial3.print(",LAT:");
+  Serial3.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 6);
+  Serial3.print(",LON:");
+  Serial3.print(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6);
+  Serial3.println("");
 
-    // write to SD card
-    File dataFile = SD.open("packets.txt", FILE_WRITE);
+  // write to SD card
+  File dataFile = SD.open("packets.txt", FILE_WRITE);
       
-    if(dataFile){
-      dataFile.print("GPS:");
-      dataFile.print("TIME:");
-      dataFile.print(millis() / 1000.0);
-      dataFile.print(",LAT:");
-      dataFile.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 6);
-      dataFile.print(",LON:");
-      dataFile.print(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6);
-      dataFile.println("");
-      dataFile.close();
-      }  
+  if(dataFile){
+    dataFile.print("GPS:");
+    dataFile.print("TIME:");
+    dataFile.print(millis() / 1000.0);
+    dataFile.print(",LAT:");
+    dataFile.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 6);
+    dataFile.print(",LON:");
+    dataFile.print(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6);
+    dataFile.println("");
+    dataFile.close();
+    }  
 }
-void loop(void)
-{
+
+void setup(){
+  Serial.begin(115200);
+  Serial1.begin(4800);
+  Serial3.begin(9600);
+  xbee.setSerial(Serial3);
+  Serial.println(F("Let's launch some rockets!")); Serial.println("");
+  
+  /* Initialise the sensors */
+  if(!accel.begin()){
+    /* There was a problem detecting the ADXL345 ... check your connections */
+    Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
+    while(1);
+  }
+  if(!mag.begin()){
+    /* There was a problem detecting the LSM303 ... check your connections */
+    Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+    while(1);
+  }
+  if(!bmp.begin()){
+    /* There was a problem detecting the BMP085 ... check your connections */
+    Serial.print("Ooops, no BMP085 detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
+  if(!gyro.begin()){
+    /* There was a problem detecting the L3GD20 ... check your connections */
+    Serial.print("Ooops, no L3GD20 detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
+  
+  /* Display some basic information on this sensor */
+  displaySensorDetails();
+
+  /* debug SD card */
+  Serial.print("\nInitializing SD card...");
+  // see if the card is present and can be initialized:
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card failed, or not present");
+    // don't do anything more:
+    return;
+  }
+  Serial.println("card initialized.");
+}
+
+void loop(void){
   transmitAndWriteGPSData();
   transmitAndWriteSensorData();
   delay(200); /* measurements per second  1000 = 1 sec intervals*/
@@ -258,68 +296,6 @@ void loop(void)
   transmitAndWriteSensorData();
   delay(200);
   transmitAndWriteSensorData();
-
-  
-  //debug GPS via USB
-  float flat, flon;
-  unsigned long age; 
-  gps.f_get_position(&flat, &flon, &age);
-  Serial.print("GPS,");
-  Serial.print("TIME:");
-  Serial.print(millis() / 1000.0);
-  Serial.print(",LAT:");
-  Serial.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 6);
-  Serial.print(",LON:");
-  Serial.print(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6);
-  Serial.println("");  
-
-  //debug sensors via USB
-  /* Get a new sensor event */
-  sensors_event_t event;
-   
-  /* Display the results (acceleration is measured in m/s^2) */
-  accel.getEvent(&event);
-  Serial.print(F("ACCEL "));
-  Serial.print("X: "); Serial.print(event.acceleration.x); Serial.print("  ");
-  Serial.print("Y: "); Serial.print(event.acceleration.y); Serial.print("  ");
-  Serial.print("Z: "); Serial.print(event.acceleration.z); Serial.print("  ");Serial.println("m/s^2 ");
-
-  /* Display the results (magnetic vector values are in micro-Tesla (uT)) */
-  mag.getEvent(&event);
-  Serial.print(F("MAG   "));
-  Serial.print("X: "); Serial.print(event.magnetic.x); Serial.print("  ");
-  Serial.print("Y: "); Serial.print(event.magnetic.y); Serial.print("  ");
-  Serial.print("Z: "); Serial.print(event.magnetic.z); Serial.print("  ");Serial.println("uT");
-
-  /* Display the results (gyrocope values in rad/s) */
-  gyro.getEvent(&event);
-  Serial.print(F("GYRO:  "));
-  Serial.print("X: "); Serial.print(event.gyro.x); Serial.print("  ");
-  Serial.print("Y: "); Serial.print(event.gyro.y); Serial.print("  ");
-  Serial.print("Z: "); Serial.print(event.gyro.z); Serial.print("  ");Serial.println("rad/s ");  
-
-  /* Display the pressure sensor results (barometric pressure is measure in hPa) */
-  bmp.getEvent(&event);
-  if (event.pressure)
-  {
-    /* Display atmospheric pressure in hPa */
-    Serial.print(F("PRESS "));
-    Serial.print(event.pressure);
-    Serial.print(F(" hPa, "));
-    /* Display ambient temperature in C */
-    float temperature;
-    bmp.getTemperature(&temperature);
-    Serial.print(temperature);
-    Serial.print(F(" C, "));
-    /* Then convert the atmospheric pressure, SLP and temp to altitude    */
-    /* Update this next line with the current SLP for better results      */
-    float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
-    Serial.print(bmp.pressureToAltitude(seaLevelPressure,
-                                        event.pressure,
-                                        temperature)); 
-    Serial.println(F(" m"));
-  }
-  
-  Serial.println(F(""));
-  delay(200); /* measurements per second  1000 = 1 sec intervals*/
+  delay(200); 
+  debug();
 }
