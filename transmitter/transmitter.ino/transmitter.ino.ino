@@ -5,6 +5,11 @@
 #include <Adafruit_BMP085_U.h>
 #include <Adafruit_L3GD20_U.h>
 #include <Adafruit_10DOF.h>
+// Libraries for XBee
+#include <XBee.h> 
+// Libraries for GPS
+#include <TinyGPS.h> //interacts with GPS reciever
+
 // include the SD library:
 #include <SdFat.h> 
 #include <spi4teensy3.h>
@@ -13,9 +18,7 @@
 //SCLK connected to PIN 13
 //SS connected to PIN 10 
 
-//Stuff for XBee
-#include <XBee.h> // Stuff for GPS
-#include <TinyGPS.h> //interacts with GPS reciever
+
 
 TinyGPS gps;
 XBee xbee = XBee();
@@ -29,7 +32,6 @@ Adafruit_L3GD20_Unified       gyro  = Adafruit_L3GD20_Unified(20);
 // Chip Selector for SD connected to pin 10 on the Teensy 3.x
 const int chipSelect = 10;
 SdFat SD;
-File dataFile;
 
 //Disable chip select since running multiple SPI devices
 const int8_t DISABLE_CHIP_SELECT = -1;
@@ -206,11 +208,11 @@ void transmitAndWriteSensorData() {
   
   Serial3.println(F(""));
   dataFile.println(F(""));
+  dataFile.close();
 }
 
 
 void transmitAndWriteGPSData() {
-  dataFile = SD.open("launch.txt", FILE_WRITE);
   float flat, flon;
   unsigned long age; 
   gps.f_get_position(&flat, &flon, &age);
@@ -227,9 +229,9 @@ void transmitAndWriteGPSData() {
   Serial3.println("");
 
   // write to SD card
-  File dataFile = SD.open("packets.txt", FILE_WRITE);
+  File dataFile = SD.open("launch.txt", FILE_WRITE);
       
-  if(dataFile){
+  if(dataFile,isOpen()){
     dataFile.print("GPS:");
     dataFile.print("TIME:");
     dataFile.print(millis() / 1000.0);
@@ -238,8 +240,8 @@ void transmitAndWriteGPSData() {
     dataFile.print(",LON:");
     dataFile.print(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6);
     dataFile.println("");
-    dataFile.close();
-    }  
+  }  
+  dataFile.close();
 }
 
 void setup(){
@@ -287,6 +289,7 @@ void setup(){
 
 void loop(void){
   transmitAndWriteGPSData();
+  
   transmitAndWriteSensorData();
   delay(200); /* measurements per second  1000 = 1 sec intervals*/
   transmitAndWriteSensorData();
