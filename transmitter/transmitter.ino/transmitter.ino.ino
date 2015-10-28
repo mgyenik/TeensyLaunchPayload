@@ -231,7 +231,7 @@ void transmitAndWriteGPSData() {
   // write to SD card
   File dataFile = SD.open("launch.txt", FILE_WRITE);
       
-  if(dataFile,isOpen()){
+  if(dataFile.isOpen()){
     dataFile.print("GPS:");
     dataFile.print("TIME:");
     dataFile.print(millis() / 1000.0);
@@ -289,16 +289,9 @@ void setup(){
 
 void loop(void){
   transmitAndWriteGPSData();
-  
-  transmitAndWriteSensorData();
-  delay(200); /* measurements per second  1000 = 1 sec intervals*/
-  transmitAndWriteSensorData();
-  delay(200);
-  transmitAndWriteSensorData();
-  delay(200);
-  transmitAndWriteSensorData();
-  delay(200);
-  transmitAndWriteSensorData();
-  delay(200); 
+  for(int i =0; i < 5; i++) {
+    transmitAndWriteSensorData();
+    delay(200); /* measurements per second  1000 = 1 sec intervals*/
+  }
   debug();
 }
