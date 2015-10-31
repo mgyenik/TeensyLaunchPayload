@@ -249,6 +249,12 @@ void setup(){
   Serial1.begin(4800);
   Serial3.begin(9600);
   xbee.setSerial(Serial3);
+  /* Set 10DOF to +/-16G */
+  Wire.beginTransmission(0x32); //address of LSM303
+  Wire.write(0x23);  //address of the sensitivity control register LSM303
+  Wire.write(0x30); //setting the range 0x00 -> +/-2g, 0x10 -> +/-4g, 0x20 -> +/- 8g, 0x30 -> +/-16g
+  Wire.endTransmission();
+  delay(5000);
   Serial.println(F("Let's launch some rockets!")); Serial.println("");
   
   /* Initialise the sensors */
