@@ -27,50 +27,10 @@ void pprintf(Print *p, const char *fmt, ... ) {
 }
 
 // Map from sensor type to a static string.
-static inline const char *sensorTypeName(const sensor_t& sensor) {
-	const char *type_name;
-	switch (sensor.type) {
-	case SENSOR_TYPE_ACCELEROMETER:
-		type_name = "ACCELEROMETER";
-		break;
-	case SENSOR_TYPE_MAGNETIC_FIELD:
-		type_name = "MAGNETOMETER";
-		break;
-	case SENSOR_TYPE_GYROSCOPE:
-		type_name = "GYROSCOPE";
-		break;
-	case SENSOR_TYPE_PRESSURE:
-		type_name = "BAROMETER";
-		break;
-	default:
-		type_name = "UNKNOWN";
-		break;
-	}
-	return type_name;
-}
+const char *sensorTypeName(const sensor_t& sensor);
 
 // Map form sensor type to static string for the units.
-static inline const char *sensorTypeUnits(const sensor_t& sensor) {
-	const char *unit_name;
-	switch (sensor.type) {
-	case SENSOR_TYPE_ACCELEROMETER:
-		unit_name = "m/s^2";
-		break;
-	case SENSOR_TYPE_MAGNETIC_FIELD:
-		unit_name = "uT";
-		break;
-	case SENSOR_TYPE_GYROSCOPE:
-		unit_name = "rad/s";
-		break;
-	case SENSOR_TYPE_PRESSURE:
-		unit_name = "hPa";
-		break;
-	default:
-		unit_name = "unknown units";
-		break;
-	}
-	return unit_name;
-}
+const char *sensorTypeUnits(const sensor_t& sensor);
 
 // Interface for SensorWriters, SensorWriters sample sensors and serialize the
 // output to Print sinks. Classes that implement this interface help eliminate

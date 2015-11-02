@@ -11,13 +11,13 @@
 
 TinyGPS gps;
 
-/* Instantiate sensors with a unique ID. */
+// Instantiate sensors with a unique ID.
 Adafruit_LSM303_Accel_Unified accel(30301);
 Adafruit_L3GD20_Unified       gyro(20);
 Adafruit_LSM303_Mag_Unified   mag(30302);
 Adafruit_BMP085_Unified       bmp(18001);
 
-/* Sensor writers hold samples and serialize them. */
+// Sensor writers hold samples and serialize them.
 UnifiedSensorWriter accelWriter(&accel);
 UnifiedSensorWriter gyroWriter(&gyro);
 UnifiedSensorWriter magWriter(&mag);
@@ -25,11 +25,11 @@ AltitudeSensorWriter bmpWriter(&bmp);
 GPSSensorWriter gpsWriter(&gps, &Serial1); // GPS connected to Serial1.
 
 SensorWriter *writers[] = {
-	&accelWriter,
-	&gyroWriter,
-	&magWriter,
-	&bmpWriter,
-	&gpsWriter,
+  &accelWriter,
+  &gyroWriter,
+  &magWriter,
+  &bmpWriter,
+  &gpsWriter,
 };
 
 // This flag enables debug sensor data dumps on the default Serial stream.
@@ -38,9 +38,13 @@ const bool debug = true;
 // Chip Selector for SD connected to pin 10 on the Teensy 3.x
 const int SDChipSelect = 4;
 SdFat SD;
+File dataFile;
 
 //Disable chip select since running multiple SPI devices
 const int8_t DISABLE_CHIP_SELECT = -1;
+
+// Total number of ms that the loop should take. 200ms is ~5Hz update rate.
+const unsigned long LOOP_TIME_MS = 200;
 
 // Print out the sensor data from the 10 DOF to USB for debug.
 void displaySensorDetails(void) {
@@ -54,25 +58,8 @@ void displaySensorDetails(void) {
   sensorDetailsOut(sensor, &Serial);
   bmp.getSensor(&sensor);
   sensorDetailsOut(sensor, &Serial);
-  
+
   delay(500);
-}
-
-void transmitAndWriteSensorData() {
-  File dataFile = SD.open("launch.txt", FILE_WRITE);
-  for (int i = 0; i < ARRAY_SIZE(writers); i++) {
-	// Sample each sensor and write the output to the SD card log file and the
-	// XBee on Serial3. If debugging is enabled, sensors are also written to
-	// Serial for viewing with the Serial Monitor.
-	writers[i]->Update();
-	writers[i]->Write(&dataFile);
-	writers[i]->Write(&Serial3);
-	if (debug) {
-	  writers[i]->Write(&Serial);
-	}
-  }
-
-  dataFile.close();
 }
 
 void setup(){
@@ -81,11 +68,11 @@ void setup(){
   Serial3.begin(9600);
   while (!Serial);
 
-  Serial.println(F("Let's launch some rockets!\n"));
+  Serial.println("Let's launch some rockets!\n");
 
   // Initialize the sensors.
   if(!accel.begin()){
-    Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
+    Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
     while(1);
   }
   if(!mag.begin()){
@@ -112,12 +99,32 @@ void setup(){
     Serial.println("Card failed, or not present");
     return;
   }
+  dataFile = SD.open("launch.txt", FILE_WRITE);
   Serial.println("card initialized.");
 }
 
 void loop(void){
-  for(int i =0; i < 5; i++) {
-    transmitAndWriteSensorData();
-    delay(200); /* measurements per second  1000 = 1 sec intervals*/
+  unsigned long loop_start = millis();
+
+  // Sample each sensor and write the output to the SD card log file and the
+  // XBee on Serial3. If debugging is enabled, sensors are also written to
+  // Serial for viewing with the Serial Monitor.
+  for (int i = 0; i < ARRAY_SIZE(writers); i++) {
+    writers[i]->Update();
+    writers[i]->Write(&Serial3);
+    writers[i]->Write(&dataFile);
+    dataFile.sync(); // sync changes to file and file allocation table, etc...
+    if (debug) {
+      writers[i]->Write(&Serial);
+    }
   }
+
+  // Figure out how long to wait for a constant update rate. This is not
+  // extremely accurate, but works well enough for ms resolution. Note that if
+  // the loop actually took more time that LOOP_TIME_MS, the delay is clamped
+  // to 0.
+  unsigned long loop_end = millis();
+  unsigned long loop_time = loop_end-loop_start;
+  unsigned long loop_delay = LOOP_TIME_MS > loop_time ? LOOP_TIME_MS - loop_time : 0;
+  delay(loop_delay);
 }
