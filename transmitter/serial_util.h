@@ -41,10 +41,10 @@ class SensorWriter {
 	virtual ~SensorWriter() {}
 
 	// Take sample from sensor so that all logging sources get the same value.
-	virtual void Update() {};
+	virtual void Update() = 0;
 
  	// Log this sample to the given stream.
-	virtual void Write(Print *p) const {}
+	virtual void Write(Print *p) = 0;
 };
 
 class UnifiedSensorWriter : public SensorWriter {

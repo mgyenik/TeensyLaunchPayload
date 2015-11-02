@@ -112,8 +112,10 @@ void loop(void){
   for (int i = 0; i < ARRAY_SIZE(writers); i++) {
     writers[i]->Update();
     writers[i]->Write(&Serial3);
-    writers[i]->Write(&dataFile);
-    dataFile.sync(); // sync changes to file and file allocation table, etc...
+    if (dataFile.isOpen()) {
+      writers[i]->Write(&dataFile);
+      dataFile.sync(); // sync changes to file and file allocation table, etc...
+    }
     if (debug) {
       writers[i]->Write(&Serial);
     }

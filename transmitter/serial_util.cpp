@@ -8,7 +8,7 @@
 // Helper for dumping out details during initialization.
 void sensorDetailsOut(const sensor_t& sensor, Stream *serial) {
 	// Now write details to the serial output.
-	pprintf(serial, "----------- %s ----------\n"
+	pprintf(serial, "\n----------- %s ----------\n"
 					"Sensor:       %s\n"
 					"Driver Ver:   %d\n"
 					"Unique ID:    %d\n"
@@ -66,6 +66,7 @@ static inline char *strf(char *buf, float f) {
 
 static inline void pprint_sensor_vec(const sensors_vec_t& vec, Print *p) {
 	char buf[16]; // No %f in sprintf? What the fuck.
+ 
 	pprintf(p, "X: %s Y: %s Z: %s ", strf(buf, vec.x), strf(buf, vec.y), strf(buf, vec.z));
 }
 
@@ -85,7 +86,7 @@ void UnifiedSensorWriter::Write(Print *p) {
   sensor_->getSensor(&s);
 
 	// The name is always written.
-	p->print(name_);
+	pprintf(p, "%s: ", name_);
 
 	// Write out body, format and source of data in event union depends on type...
 	switch (s.type) {
@@ -93,10 +94,10 @@ void UnifiedSensorWriter::Write(Print *p) {
 		pprint_sensor_vec(event_.acceleration, p);
 		break;
 	case SENSOR_TYPE_MAGNETIC_FIELD:
-		pprint_sensor_vec(event_.gyro, p);
+		pprint_sensor_vec(event_.magnetic, p);
 		break;
 	case SENSOR_TYPE_GYROSCOPE:
-		pprint_sensor_vec(event_.magnetic, p);
+		pprint_sensor_vec(event_.gyro, p);
 		break;
 	}
 
