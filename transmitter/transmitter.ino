@@ -11,22 +11,25 @@
 
 TinyGPS gps;
 
-/* Assign a unique ID to the sensors */
-Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(30301);
-Adafruit_L3GD20_Unified       gyro  = Adafruit_L3GD20_Unified(20);
-Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
-Adafruit_BMP085_Unified       bmp   = Adafruit_BMP085_Unified(18001);
+/* Instantiate sensors with a unique ID. */
+Adafruit_LSM303_Accel_Unified accel(30301);
+Adafruit_L3GD20_Unified       gyro(20);
+Adafruit_LSM303_Mag_Unified   mag(30302);
+Adafruit_BMP085_Unified       bmp(18001);
 
+/* Sensor writers hold samples and serialize them. */
 UnifiedSensorWriter accelWriter(&accel);
 UnifiedSensorWriter gyroWriter(&gyro);
 UnifiedSensorWriter magWriter(&mag);
 AltitudeSensorWriter bmpWriter(&bmp);
+GPSSensorWriter gpsWriter(&gps, &Serial1); // GPS connected to Serial1.
 
 SensorWriter *writers[] = {
 	&accelWriter,
 	&gyroWriter,
 	&magWriter,
 	&bmpWriter,
+	&gpsWriter,
 };
 
 // This flag enables debug sensor data dumps on the default Serial stream.
@@ -72,39 +75,6 @@ void transmitAndWriteSensorData() {
   dataFile.close();
 }
 
-
-void transmitAndWriteGPSData() {
-  float flat, flon;
-  unsigned long age; 
-  gps.f_get_position(&flat, &flon, &age);
-  //transmit to Xbee and SD 
-    
-  Serial3.print("GPS:");
-  Serial3.print("TIME:");
-  Serial3.print(millis() / 1000.0);
-  // Serial3.print(TinyGPS::_time);
-  Serial3.print(",LAT:");
-  Serial3.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 6);
-  Serial3.print(",LON:");
-  Serial3.print(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6);
-  Serial3.println("");
-
-  // write to SD card
-  File dataFile = SD.open("launch.txt", FILE_WRITE);
-      
-  if(dataFile.isOpen()){
-    dataFile.print("GPS:");
-    dataFile.print("TIME:");
-    dataFile.print(millis() / 1000.0);
-    dataFile.print(",LAT:");
-    dataFile.print(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flat, 6);
-    dataFile.print(",LON:");
-    dataFile.print(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 : flon, 6);
-    dataFile.println("");
-  }  
-  dataFile.close();
-}
-
 void setup(){
   Serial.begin(115200);
   Serial1.begin(4800);
@@ -146,7 +116,6 @@ void setup(){
 }
 
 void loop(void){
-  transmitAndWriteGPSData();
   for(int i =0; i < 5; i++) {
     transmitAndWriteSensorData();
     delay(200); /* measurements per second  1000 = 1 sec intervals*/

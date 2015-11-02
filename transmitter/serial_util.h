@@ -3,6 +3,7 @@
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP085_U.h>
+#include <TinyGPS.h>
 #include <stdarg.h>
 
 #define ARRAY_SIZE(__a) (int)(sizeof(__a)/sizeof((__a)[0]))
@@ -86,7 +87,6 @@ class SensorWriter {
 	virtual void Write(Print *p) const {}
 };
 
-// 
 class UnifiedSensorWriter : public SensorWriter {
  public:
 	UnifiedSensorWriter(Adafruit_Sensor *sensor);
@@ -100,7 +100,6 @@ class UnifiedSensorWriter : public SensorWriter {
 	const char *unit_;
 };
 
-// Simple class to eliminate redundancy in printing.
 class AltitudeSensorWriter : public SensorWriter {
  public:
 	AltitudeSensorWriter(Adafruit_BMP085_Unified *bmp);
@@ -112,6 +111,17 @@ class AltitudeSensorWriter : public SensorWriter {
 	sensors_event_t event_;
 	const char *name_;
 	const char *unit_;
+};
+
+class GPSSensorWriter : public SensorWriter {
+ public:
+	GPSSensorWriter(TinyGPS *gps, Stream *s) : gps_(gps), stream_(s) {}
+	void Update();
+ 	void Write(Print *p);
+
+ private:
+	TinyGPS *gps_;
+	Stream *stream_;
 };
 
 void sensorDetailsOut(const sensor_t& sensor, Stream *serial);

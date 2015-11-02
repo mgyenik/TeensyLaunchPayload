@@ -1,5 +1,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
+#include <Adafruit_BMP085_U.h>
+#include <TinyGPS.h>
 
 #include "serial_util.h"
 
@@ -75,4 +77,22 @@ void AltitudeSensorWriter::Write(Print *p) {
 	float alt = bmp_->pressureToAltitude(seaLevelPressure, event_.pressure); 
 	char buf[16]; // No %f in sprintf? What the fuck.
 	pprintf(p, "%s %s %s\n", name_, strf(buf, alt), unit_);
+}
+
+void GPSSensorWriter::Update() {
+	// We fully drain the serial stream into the TinyGPS decoder, which will
+	// update the latitude and longitude as encode() is called.
+	while (stream_->available()) {
+		gps_->encode(stream_->read());
+	}
+}
+
+void GPSSensorWriter::Write(Print *p) {
+	float lat;
+	float lon;
+	unsigned long age;
+	gps_->f_get_position(&lat, &lon, &age);
+
+	char buf[16]; // No %f in sprintf? What the fuck.
+	pprintf(p, "GPS: LAT: %s, LON: %s AGE: %lu\n", strf(buf, lat), strf(buf, lon), age);
 }
